@@ -28,11 +28,13 @@
 
 var i18n = require( "i18n" );
 var path = require( "path" );
+var fs = require('fs');
 
 var configuration = {
 	directory      : "locales/",
 	extension      : ".json",
-	objectNotation : "."
+	objectNotation : ".",
+	fallbacks      : {}
 };
 
 /**
@@ -45,6 +47,7 @@ var configure = function( app, configObject ) {
 		configuration.directory = configObject.directory || configuration.directory;
 		configuration.extension = configObject.extension || configuration.extension;
 		configuration.objectNotation = configObject.objectNotation || configuration.objectNotation;
+		configuration.fallbacks = configObject.fallbacks || configuration.fallbacks;
 	}
 
 	// Register routes
@@ -84,8 +87,16 @@ var i18nRoutes = {
 	 */
 	i18n : function( request, response ) {
 		var locale = request.params.locale;
-		var sendFile = response.sendFile || response.sendfile;
-		sendFile.apply( response, [ path.join( configuration.directory, locale + configuration.extension ) ] );
+		var localeFile = JSON.parse(fs.readFileSync(path.join( configuration.directory, locale + configuration.extension), 'utf8'));
+		var parentLocale, parentFile, resultFile;
+		if (configuration.fallbacks && configuration.fallbacks[locale]) {
+			parentLocale = configuration.fallbacks[locale];
+			parentFile = JSON.parse(fs.readFileSync(path.join( configuration.directory, parentLocale + configuration.extension), 'utf8'));
+			resultFile = Object.assign(parentFile, localeFile);
+		} else {
+			resultFile = localeFile;
+		}
+		response.send(resultFile);
 	},
 
 	/**
